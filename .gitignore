@@ -1,0 +1,8 @@
+# Ignore the siren directory anywhere in the project
+siren/
+
+# Ignore all __pycache__ directories
+__pycache__/
+
+# Ignore macOS .DS_Store files globally
+.DS_Store
