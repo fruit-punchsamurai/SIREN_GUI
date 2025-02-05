@@ -9,7 +9,6 @@ import noisereduce as nr
 import soundfile as sf
 import subprocess
 import shutil
-import json
 import argparse
 
 parser = argparse.ArgumentParser(description="Run SIREN model inference.")
@@ -222,11 +221,13 @@ def get_coords_from_params(frames, height, width, audio_samples, super_resolutio
 
 
 model_path = args.model_path
-json_file = args.json_file
 
-# Load the video_parameters from the JSON file
-with open(json_file, "r") as f:
-    video_parameters = json.load(f)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+loaded_data = torch.load(model_path, map_location=device)
+
+model_parameters = loaded_data['weights_and_biases']
+video_parameters = loaded_data['video_parameters']
+
 
 # Access the video_parameters from the loaded dictionary
 height = video_parameters["height"]
@@ -239,7 +240,6 @@ audio_duration = video_parameters["audio_duration"]
 frame_size = height * width
 audio_sample = audio_rate * audio_duration
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 model = SharedSiren(
     audio_initial_features=512,
@@ -258,7 +258,7 @@ model = SharedSiren(
     audio_hidden_layers_siam=1
 ).to(device)
 
-model.load_state_dict(torch.load(model_path, map_location=device))
+model.load_state_dict(model_parameters)
 
 
 
