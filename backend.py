@@ -6,8 +6,6 @@ import os
 import subprocess
 from pathlib import Path
 import uuid
-import mimetypes
-mimetypes.add_type("video/mp4", ".mp4", True)
 
 app = FastAPI()
 
@@ -57,7 +55,7 @@ async def upload_and_infer(
         raise HTTPException(status_code=500, detail=f"Error saving JSON file: {e}")
     
     # Generate a unique name for the output video
-    output_video_name = f"output_{Path(model_file.filename).stem}_{uuid.uuid4().hex}.mp4"
+    output_video_name = f"output_{Path(model_file.filename).stem}_{uuid.uuid4().hex}.webm"
     output_video_path = os.path.join(folder_path, output_video_name)
     
     # Build the command to run the inference script
@@ -84,44 +82,64 @@ async def upload_and_infer(
     video_url = f"/uploads/{folder}/{output_video_name}"
     return {"video_url": video_url}
 
+# @app.get("/list_all_videos")
+# async def list_all_videos():
+#     """
+#     Lists all subfolders in the uploads directory and the MP4 videos within each folder.
+#     """
+#     uploads_listing = []
+#     for folder in os.listdir(UPLOADS_DIR):
+#         folder_path = os.path.join(UPLOADS_DIR, folder)
+#         if os.path.isdir(folder_path):
+#             videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]
+#             uploads_listing.append({
+#                 "folder": folder,
+#                 "videos": videos
+#             })
+#     return {"uploads": uploads_listing}
+
 @app.get("/list_all_videos")
 async def list_all_videos():
     """
-    Lists all subfolders in the uploads directory and the MP4 videos within each folder.
+    Lists all subfolders in the uploads directory and the WebM videos within each folder.
     """
     uploads_listing = []
     for folder in os.listdir(UPLOADS_DIR):
         folder_path = os.path.join(UPLOADS_DIR, folder)
         if os.path.isdir(folder_path):
-            videos = [f for f in os.listdir(folder_path) if f.endswith(".mp4")]
+            videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]  # Ensure filtering for .webm
             uploads_listing.append({
                 "folder": folder,
                 "videos": videos
             })
     return {"uploads": uploads_listing}
-@app.get("/videos/{folder}")
-async def list_videos(folder: str):
-    # Log for debugging
-    folder = folder.strip()  # Optional: strip any accidental spaces
-    folder_path = os.path.join(UPLOADS_DIR, folder)
-    print("GET /videos/ endpoint: folder =", repr(folder), "->", os.path.abspath(folder_path))
-    if not os.path.exists(folder_path):
-        raise HTTPException(status_code=404, detail="Folder not found")
-    videos = [f for f in os.listdir(folder_path) if f.endswith(".mp4")]
-    return {"videos": videos}
+
+
 
 # @app.get("/videos/{folder}")
 # async def list_videos(folder: str):
-#     """
-#     Lists all the MP4 video files available in the given folder.
-#     """
+#     # Log for debugging
+#     folder = folder.strip()  # Optional: strip any accidental spaces
 #     folder_path = os.path.join(UPLOADS_DIR, folder)
+#     print("GET /videos/ endpoint: folder =", repr(folder), "->", os.path.abspath(folder_path))
 #     if not os.path.exists(folder_path):
 #         raise HTTPException(status_code=404, detail="Folder not found")
-    
-#     # List only files ending with .mp4
-#     videos = [f for f in os.listdir(folder_path) if f.endswith(".mp4")]
+#     videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]
 #     return {"videos": videos}
+
+@app.get("/videos/{folder}")
+async def list_videos(folder: str):
+    folder = folder.strip()  # Remove any extra whitespace
+    folder_path = os.path.join(UPLOADS_DIR, folder)
+    
+    print("GET /videos/ endpoint: folder =", repr(folder), "->", os.path.abspath(folder_path))
+    
+    if not os.path.exists(folder_path):
+        raise HTTPException(status_code=404, detail="Folder not found")
+    
+    videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]  # Ensure filtering for .webm
+    return {"videos": videos}
+
 
 
 @app.get("/videos/{folder}")
@@ -131,7 +149,7 @@ async def list_videos(folder: str):
     print("GET /videos/ endpoint: folder =", repr(folder), "->", os.path.abspath(folder_path))
     if not os.path.exists(folder_path):
         raise HTTPException(status_code=404, detail="Folder not found")
-    videos = [f for f in os.listdir(folder_path) if f.endswith(".mp4")]
+    videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]
     return {"videos": videos}
 
 

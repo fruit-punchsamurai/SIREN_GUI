@@ -364,26 +364,56 @@ video_writer.release()
 
 
 # Step 3: Combine video and audio into the final output
+# def combine_video_audio(video_file, audio_file, output_file):
+#     # FFmpeg command to combine video and audio
+#     command = [
+#         "ffmpeg", 
+#         "-y",
+#         "-i", video_file, 
+#         "-i", audio_file, 
+#         "-c:v", "copy", 
+#         "-c:a", "aac", 
+#         "-strict", "experimental", 
+#         output_file
+#     ]
+    
+#     # Run the FFmpeg command
+#     try:
+#         subprocess.run(command, check=True)
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error during FFmpeg process: {e}")
+
+# combine_video_audio(temp_video_path, temp_audio_path, final_output_path)
+
+
 def combine_video_audio(video_file, audio_file, output_file):
-    # FFmpeg command to combine video and audio
+    # Ensure the output file has the correct .webm extension
+    if not output_file.endswith(".webm"):
+        output_file = output_file.rsplit(".", 1)[0] + ".webm"
+
+    # FFmpeg command to combine video and audio into WebM format
     command = [
-        "ffmpeg", 
+        "ffmpeg",
         "-y",
-        "-i", video_file, 
-        "-i", audio_file, 
-        "-c:v", "copy", 
-        "-c:a", "aac", 
-        "-strict", "experimental", 
+        "-i", video_file,  # Input video file
+        "-i", audio_file,  # Input audio file
+        "-c:v", "libvpx-vp9",  # VP9 codec for WebM
+        "-b:v", "1M",  # Set video bitrate (adjust as needed)
+        "-c:a", "libopus",  # Opus codec for WebM audio
+        "-b:a", "128k",  # Audio bitrate
         output_file
     ]
-    
+
     # Run the FFmpeg command
     try:
         subprocess.run(command, check=True)
+        print(f"WebM video saved as: {output_file}")
     except subprocess.CalledProcessError as e:
         print(f"Error during FFmpeg process: {e}")
 
-combine_video_audio(temp_video_path, temp_audio_path, final_output_path)
+# Call function to create WebM output
+final_output_webm_path = final_output_path.rsplit(".", 1)[0] + ".webm"
+combine_video_audio(temp_video_path, temp_audio_path, final_output_webm_path)
 
 # Step 4: Cleanup - Delete temp files after the final video is created
 def cleanup_temp_files():
