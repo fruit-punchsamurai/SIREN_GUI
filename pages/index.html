@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Transfer</title>
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+     <link href="static/styles.css" rel="stylesheet">
+     <!-- <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"> -->
+
+</head>
+
+<body class="bg-gray-100 flex flex-col items-center justify-center h-screen p-4">
+    
+    <!-- Navbar -->
+    <nav class="w-full bg-white shadow-md py-4 px-6 flex justify-between items-center">
+        <a href="/" class="text-xl font-bold text-blue-600">WebSIREN</a>
+        <h1 class="text-lg font-semibold">File Transfer</h1>
+        <div class="space-x-4">
+            <a href="#" class="text-gray-700 hover:text-blue-600 transition">Training</a>
+            <a href="/infer" class="text-gray-700 hover:text-blue-600 transition">Inference</a>
+        </div>
+    </nav>
+    
+    <div class="flex flex-col md:flex-row w-full max-w-5xl h-full md:h-5/6 shadow-xl rounded-lg overflow-hidden mt-4">
+
+        <!-- Main Area (File Selection) -->
+        <div class="w-full md:w-1/2 bg-white p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r">
+            <input type="file" id="fileInput" hidden />
+            <button id="select-button" onclick="document.getElementById('fileInput').click()"
+                class="px-6 py-2 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600 transition duration-300">
+                Select File
+            </button>
+            <div id="selectedFile" class="mt-4 text-center">
+                <div id="fileName-div" class="text-lg font-light" hidden>Selected: <span id="fileName"
+                        class="text-lg font-semibold"></span></div>
+                <span id="fileSize" class="text-gray-600 block"></span>
+                <button id="clearFile" class="text-red-500 p-2 hidden">✖</button>
+            </div>
+            <div id="transferProgress" class="mt-6 w-full flex justify-center items-center relative"></div>
+        </div>
+
+        <!-- Sidebar (Connected Clients) -->
+        <div class="w-full md:w-1/2 bg-blue-500 text-white p-6 flex flex-col">
+            <div class="flex items-center gap-4 mb-6">
+                <img src="" id="clientAvatar" class="w-16 h-16 rounded-full bg-white" />
+                <div>
+                    <h2 class="text-xl font-bold">You are: <span id="clientName" class="font-light"></span></h2>
+                    <small id="clientId" class="block text-sm opacity-75"></small>
+                </div>
+            </div>
+            <h3 class="text-lg font-semibold">Available Clients</h3>
+            <p class="text-sm opacity-75">Click on a client to send the file</p>
+            <div id="clientList" class="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 cursor-pointer"></div>
+            <div id="noClients" class="mt-4 text-center text-sm opacity-75" hidden>No clients connected</div>
+        </div>
+    </div>
+    
+
+    <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden">
+        <div class="w-full max-w-xs sm:max-w-sm bg-white p-6 rounded-lg shadow-xl">
+            <h2 class="text-lg font-semibold text-center">Accept File Transfer</h2>
+            <p id="modalMessage" class="text-sm opacity-75 mt-2 text-center break-words"></p>
+            <div class="mt-4 flex flex-col sm:flex-row justify-center sm:justify-end gap-2 sm:gap-4">
+                <button id="acceptFile"
+                    class="w-full sm:w-auto px-4 py-2 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600 transition duration-300">
+                    Accept
+                </button>
+                <button id="rejectFile"
+                    class="w-full sm:w-auto px-4 py-2 bg-red-500 text-white rounded-lg shadow-lg hover:bg-red-600 transition duration-300">
+                    Reject
+                </button>
+            </div>
+        </div>
+    </div>    
+    <script src="/static/main.js"></script>
+</body>
+
+</html>

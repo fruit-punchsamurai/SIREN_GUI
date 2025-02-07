@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload, Inference & Play Videos</title>
+  <link href="static/styles.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100 p-4">
+
+  <!-- Navbar -->
+  <nav class="w-full bg-white shadow-md py-4 px-6 flex justify-between items-center max-w-5xl mx-auto">
+    <a href="/" class="text-xl font-bold text-blue-600">WebSIREN</a>
+    <h1 class="text-lg font-semibold">File Transfer</h1>
+    <div class="space-x-4">
+      <a href="#" class="text-gray-700 hover:text-blue-600">Page 1</a>
+      <a href="#" class="text-gray-700 hover:text-blue-600">Page 2</a>
+    </div>
+  </nav>
+
+  <!-- Upload Section -->
+  <div class="mt-6 max-w-2xl border border-black p-6 mx-auto">
+    <h2 class="text-2xl font-semibold mb-4">Upload Model & Run Inference</h2>
+    <form id="uploadForm" class="space-y-4">
+      <div>
+        <label for="folderInput" class="block text-sm">Video Name (Folder Name):</label>
+        <input type="text" id="folderInput" placeholder="Enter folder name" class="w-full p-2 border rounded" required>
+      </div>
+
+      <div>
+        <label for="modelFile" class="block text-sm">Model File (.pth):</label>
+        <input type="file" id="modelFile" accept=".pth" class="w-full p-2 border rounded" required>
+      </div>
+
+      <div>
+        <label for="jsonFile" class="block text-sm">JSON File:</label>
+        <input type="file" id="jsonFile" accept=".json" class="w-full p-2 border rounded" required>
+      </div>
+
+      <button type="button" id="uploadButton" class="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+        Upload & Run Inference
+      </button>
+    </form>
+
+    <div id="loading" class="mt-4 hidden">
+      <p>Loading... Please wait.</p>
+    </div>
+  </div>
+
+  <!-- Video Output Section -->
+  <div id="videoContainer" class="mt-6 p-6 max-w-2xl border border-black mx-auto hidden">
+    <h2 class="text-2xl font-semibold mb-4">Generated Video</h2>
+    <video id="outputVideo" controls class="w-full max-w-xs rounded"></video>
+  </div>
+
+  <!-- <hr class="my-6"> -->
+
+  <!-- Existing Videos Section -->
+  <div class="mt-6 p-6 max-w-2xl border border-black mx-auto">
+    <h2 class="text-2xl font-semibold mb-4">Play an Already Inferenced Video</h2>
+    <div>
+      <label for="videoSelect" class="block text-sm">Available Videos (Folder names):</label>
+      <select id="videoSelect" class="w-full p-2 border rounded">
+        <option disabled selected>Loading...</option>
+      </select>
+      <button type="button" id="loadVideoButton" class="w-full py-2 mt-2 bg-green-500 text-white rounded hover:bg-green-600">
+        Load Selected Video
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- Function to populate the drop-down with one video per subfolder ---
+    async function fetchAllVideos() {
+      try {
+        const response = await fetch("http://localhost:8000/list_all_videos");
+        if (!response.ok) {
+          throw new Error("Error fetching videos");
+        }
+        const data = await response.json();
+        return data.uploads;
+      } catch (error) {
+        console.error("Error in fetchAllVideos:", error);
+        return [];
+      }
+    }
+
+    async function populateVideoDropdown() {
+      const videoSelect = document.getElementById("videoSelect");
+      videoSelect.innerHTML = ""; // Clear previous options
+      const uploads = await fetchAllVideos();
+      if (uploads.length > 0) {
+        uploads.forEach(folderObj => {
+          if (folderObj.videos && folderObj.videos.length > 0) {
+            const option = document.createElement("option");
+            option.value = folderObj.folder;
+            option.textContent = folderObj.folder;
+            videoSelect.appendChild(option);
+          }
+        });
+        if (videoSelect.options.length === 0) {
+          const option = document.createElement("option");
+          option.textContent = "No videos available";
+          option.disabled = true;
+          videoSelect.appendChild(option);
+        }
+      } else {
+        const option = document.createElement("option");
+        option.textContent = "No videos available";
+        option.disabled = true;
+        videoSelect.appendChild(option);
+      }
+    }
+
+    // --- Automatically populate the drop-down on page load ---
+    window.addEventListener("DOMContentLoaded", populateVideoDropdown);
+
+    // --- Load selected video from the drop-down ---
+    document.getElementById("loadVideoButton").addEventListener("click", async () => {
+      const folder = document.getElementById("videoSelect").value;
+      if (!folder) {
+        alert("No video available to load.");
+        return;
+      }
+      try {
+        const response = await fetch(`http://localhost:8000/videos/${encodeURIComponent(folder)}`);
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error("Error fetching video details:", response.status, errText);
+          alert("Error fetching video details. HTTP status: " + response.status);
+          return;
+        }
+        const data = await response.json();
+        if (data.videos && data.videos.length > 0) {
+          const videoName = data.videos[0];
+          const outputVideo = document.getElementById("outputVideo");
+          outputVideo.src = `http://localhost:8000/uploads/${encodeURIComponent(folder)}/${encodeURIComponent(videoName)}`;
+          outputVideo.load();
+          document.getElementById("videoContainer").style.display = "block";
+        } else {
+          alert("No video available in the selected folder.");
+        }
+      } catch (error) {
+        console.error("Error loading video:", error);
+        alert("Error loading video.");
+      }
+    });
+
+    document.getElementById("uploadButton").addEventListener("click", async () => {
+      const folderInput = document.getElementById("folderInput");
+      const modelFileInput = document.getElementById("modelFile");
+      const jsonFileInput = document.getElementById("jsonFile");
+      const loadingElement = document.getElementById("loading");
+      const videoContainer = document.getElementById("videoContainer");
+      const outputVideo = document.getElementById("outputVideo");
+
+      const folder = folderInput.value.trim();
+      const modelFile = modelFileInput.files[0];
+      const jsonFile = jsonFileInput.files[0];
+
+      if (!folder || !modelFile || !jsonFile) {
+        alert("Please provide a folder name, a model file, and a JSON file.");
+        return;
+      }
+
+      outputVideo.src = "";
+      videoContainer.style.display = "none";
+
+      loadingElement.style.display = "block";
+
+      const formData = new FormData();
+      formData.append("folder", folder);
+      formData.append("model_file", modelFile);
+      formData.append("json_file", jsonFile);
+
+      try {
+        const response = await fetch("http://localhost:8000/upload_and_infer", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          // Handle error accordingly
+        }
+        const data = await response.json();
+        console.log("Response from /upload_and_infer:", data);
+
+        loadingElement.style.display = "none";
+        await populateVideoDropdown();
+      } catch (error) {
+        console.error("Error during inference:", error);
+        alert("Error occurred while uploading and running inference.");
+        loadingElement.style.display = "none";
+      }
+    });
+  </script>
+</body>
+
+</html>

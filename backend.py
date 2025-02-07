@@ -1,7 +1,10 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from typing import Dict
+import animal_avatar
+import random
 import os
 import subprocess
 from pathlib import Path
@@ -10,6 +13,43 @@ import uuid
 app = FastAPI()
 
 
+# Create an empty avatars folder
+if os.path.exists("avatars"):
+    os.system("rm -rf avatars")
+os.makedirs("avatars", exist_ok=True)
+
+# Base directory for storing uploads and inference outputs
+UPLOADS_DIR = "uploads"
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+
+# Adjectives and Nouns for generating random usernames
+adjectives = [
+    "Brave", "Clever", "Mysterious", "Gentle", "Wicked", "Swift", "Ancient", "Lucky",
+    "Crimson", "Silver", "Golden", "Fierce", "Quiet", "Daring", "Wistful", "Shadowy"
+    ]
+names = [
+    "Fox", "Raven", "Storm", "Wolf", "Willow", "Ember", "Moon", "Falcon",
+    "Thorn", "Viper", "Echo", "Hawk", "Lark", "Orchid", "Drake", "Zephyr"
+    ]
+
+# All mounts for serving static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
+
+# Mount the uploads directory so that files can be served statically
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
+
+# Store connected clients
+clients: Dict[str, WebSocket] = {}
+uniqueNames: Dict[str, str] = {}
+
+# WebRTC configuration (using Google's public STUN server)
+WEBRTC_CONFIG = {
+    "iceServers": [{"urls": "stun:stun.l.google.com:19302"}]
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,9 +57,115 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Base directory for storing uploads and inference outputs
-UPLOADS_DIR = "uploads"
-os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+@app.get("/", response_class=HTMLResponse)
+async def get():
+    return HTMLResponse(content=open("pages/index.html").read())
+
+@app.get("/infer", response_class=HTMLResponse)
+async def read_infer():
+    return HTMLResponse(content=open("pages/infer.html").read())
+
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await websocket.accept()
+
+    # Generate a unique name and avatar for the client
+    unique_name = random.choice(adjectives) + random.choice(names)
+    avatarSvg = animal_avatar.Avatar(unique_name, size=200).create_avatar()
+    os.makedirs("avatars", exist_ok=True)
+    with open(f"avatars/{client_id}.svg", "w") as f:
+        f.write(avatarSvg)
+
+
+    clients[client_id] = websocket
+    uniqueNames[client_id] = unique_name
+    print(f"Client {client_id} connected")
+
+    try:
+        # Assign identity to the client
+        await websocket.send_json({
+            "event": "assignIdentity",
+            "clientId": client_id,
+            "clientName": unique_name,
+            "avatarSvg": avatarSvg
+        })
+
+        # Notify all clients about updated list
+        await broadcast_clients_list()
+
+        while True:
+            data = await websocket.receive_json()
+            event_type = data.get("event")
+
+            if event_type == "offer":
+                # Forward offer to target client
+                target_client = clients.get(data["targetId"])
+                if target_client:
+                    await target_client.send_json({
+                        "event": "offer",
+                        "senderId": client_id,
+                        "offer": data["offer"]
+                    })
+
+            elif event_type == "answer":
+                # Forward answer to initiating client
+                initiating_client = clients.get(data["targetId"])
+                if initiating_client:
+                    await initiating_client.send_json({
+                        "event": "answer",
+                        "senderId": client_id,
+                        "answer": data["answer"]
+                    })
+
+            elif event_type == "ice-candidate":
+                # Forward ICE candidate to target client
+                target_client = clients.get(data["targetId"])
+                if target_client:
+                    await target_client.send_json({
+                        "event": "ice-candidate",
+                        "senderId": client_id,
+                        "candidate": data["candidate"]
+                    })
+
+            elif event_type == "transferRequest":
+                # Forward transfer request to target client
+                target_client = clients.get(data["targetId"])
+                if target_client:
+                    await target_client.send_json({
+                        "event": "transferRequest",
+                        "senderId": client_id,
+                        "fileName": data["fileName"],
+                        "fileSize": data["fileSize"]
+                    })
+
+            elif event_type == "transferResponse":
+                # Forward transfer response to initiating client
+                initiating_client = clients.get(data["targetId"])
+                if initiating_client:
+                    await initiating_client.send_json({
+                        "event": "transferResponse",
+                        "senderId": client_id,
+                        "accepted": data["accepted"]
+                    })
+
+    except WebSocketDisconnect:
+        del clients[client_id]
+        del uniqueNames[client_id]
+        os.remove(f"avatars/{client_id}.svg")
+        await broadcast_clients_list()
+        print(f"Client {client_id} disconnected")
+
+async def broadcast_clients_list():
+    for client_id, websocket in clients.items():
+        try:
+            await websocket.send_json({
+                "event": "updateClients",
+                "uniqueNames": uniqueNames,
+            })
+        except:
+            pass
 
 
 @app.post("/upload_and_infer")
@@ -153,11 +299,6 @@ async def list_videos(folder: str):
     return {"videos": videos}
 
 
-
-# Mount the uploads directory so that files can be served statically
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
-
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("backend:app", host="0.0.0.0", port=8000, reload=True)
