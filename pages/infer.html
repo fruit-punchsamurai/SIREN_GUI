@@ -9,16 +9,20 @@
 </head>
 
 <body class="bg-gray-100 p-4">
-
-  <!-- Navbar -->
-  <nav class="w-full bg-white shadow-md py-4 px-6 flex justify-between items-center max-w-5xl mx-auto">
-    <a href="/" class="text-xl font-bold text-blue-600">WebSIREN</a>
-    <h1 class="text-lg font-semibold">Upload, Inference & Play Videos</h1>
-    <div class="space-x-4">
-      <a href="/" class="text-gray-700 hover:text-blue-600">File Transfer</a>
-      <a href="#" class="text-gray-700 hover:text-blue-600">Training</a>
-    </div>
-  </nav>
+      <!-- Navbar -->
+      <nav class="w-full bg-white shadow-md py-4 px-6 grid sm:grid-cols-3 grid-cols-1 gap-4 items-center">
+        <!-- WebSIREN Logo Text (Left) -->
+        <a href="/" class="text-xl font-bold text-blue-600 hover:text-blue-700 transition duration-300 sm:text-left text-center sm:order-1 order-1 cursor-pointer">WebSIREN</a>
+    
+        <!-- Current Page Title (Center) -->
+        <div class="text-lg font-semibold sm:text-center text-center sm:order-2 order-2">Upload, Inference & Play Videos</div>
+    
+        <!-- Selection Menu Links (Right) -->
+        <div class="flex sm:justify-end gap-6 text-right sm:text-right sm:order-3 order-3 justify-center space-x-4 sm:space-x-6">
+            <a href="/" class="text-gray-700 hover:text-blue-600 transition duration-300 cursor-pointer hover:scale-105">File Transfer</a>
+            <a href="#" class="text-gray-700 hover:text-blue-600 transition duration-300 cursor-pointer hover:scale-105">Training</a>
+        </div>
+    </nav>
 
   <!-- Upload Section -->
   <div class="mt-6 max-w-2xl border border-black p-6 mx-auto">
