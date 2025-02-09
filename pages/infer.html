@@ -38,11 +38,6 @@
         <input type="file" id="modelFile" accept=".pth" class="w-full p-2 border rounded" required>
       </div>
 
-      <div>
-        <label for="jsonFile" class="block text-sm">JSON File:</label>
-        <input type="file" id="jsonFile" accept=".json" class="w-full p-2 border rounded" required>
-      </div>
-
       <button type="button" id="uploadButton" class="w-full py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
         Upload & Run Inference
       </button>
@@ -123,7 +118,11 @@
 
     // --- Load selected video from the drop-down ---
     document.getElementById("loadVideoButton").addEventListener("click", async () => {
-      const folder = document.getElementById("videoSelect").value;
+      await playVideo();
+    });
+
+    async function playVideo(video="") {
+      const folder = video || document.getElementById("videoSelect").value;
       if (!folder) {
         alert("No video available to load.");
         return;
@@ -150,23 +149,22 @@
         console.error("Error loading video:", error);
         alert("Error loading video.");
       }
-    });
+    }
+
 
     document.getElementById("uploadButton").addEventListener("click", async () => {
       const folderInput = document.getElementById("folderInput");
       const modelFileInput = document.getElementById("modelFile");
-      const jsonFileInput = document.getElementById("jsonFile");
       const loadingElement = document.getElementById("loading");
       const videoContainer = document.getElementById("videoContainer");
       const outputVideo = document.getElementById("outputVideo");
 
       const folder = folderInput.value.trim();
       const modelFile = modelFileInput.files[0];
-      const jsonFile = jsonFileInput.files[0];
 
-      if (!folder || !modelFile || !jsonFile) {
-        alert("Please provide a folder name, a model file, and a JSON file.");
-        return;
+      if (!folder || !modelFile) {
+          alert("Please provide a folder name and a model file.");
+          return;
       }
 
       outputVideo.src = "";
@@ -177,27 +175,31 @@
       const formData = new FormData();
       formData.append("folder", folder);
       formData.append("model_file", modelFile);
-      formData.append("json_file", jsonFile);
 
       try {
-        const response = await fetch("http://localhost:8000/upload_and_infer", {
-          method: "POST",
-          body: formData,
-        });
-        if (!response.ok) {
-          // Handle error accordingly
-        }
-        const data = await response.json();
-        console.log("Response from /upload_and_infer:", data);
+          const response = await fetch("http://localhost:8000/upload_and_infer", {
+              method: "POST",
+              body: formData,
+          });
 
-        loadingElement.style.display = "none";
-        await populateVideoDropdown();
+          if (!response.ok) {
+              throw new Error("Failed to upload and run inference.");
+          }
+
+          const data = await response.json();
+          console.log("Response from /upload_and_infer:", data);
+
+          loadingElement.style.display = "none";
+          await populateVideoDropdown();
+          await playVideo(folder);
+
       } catch (error) {
-        console.error("Error during inference:", error);
-        alert("Error occurred while uploading and running inference.");
-        loadingElement.style.display = "none";
+          console.error("Error during inference:", error);
+          alert("Error occurred while uploading and running inference.");
+          loadingElement.style.display = "none";
       }
-    });
+  });
+
   </script>
 </body>
 

@@ -10,13 +10,14 @@ import soundfile as sf
 import subprocess
 import shutil
 import argparse
+import copy
 
 parser = argparse.ArgumentParser(description="Run SIREN model inference.")
 parser.add_argument('--model_path', type=str, required=True, help="Path to the .pth model file.")
-parser.add_argument('--json_file', type=str, required=True, help="Path to the JSON file containing video parameters.")
 parser.add_argument('--output_file', type=str, required=True, help="Path for the final output video.")
 
 args = parser.parse_args()
+
 
 def get_mgrid(sidelen, dim=2, super_resolution_factor=1):
     """Generates a flattened grid of (x, y, ...) coordinates in a range of -1 to 1, with super resolution."""
@@ -220,6 +221,31 @@ def get_coords_from_params(frames, height, width, audio_samples, super_resolutio
     return coords, original_lengths
 
 
+def load_and_dequantize_model(model_parameters, model_template):
+    # Load the quantized state dict into the model template
+    model_template.load_state_dict(model_parameters["model_state_dict"], strict=False)
+    scale_factors = model_parameters["scale_factors"]
+
+    # Dequantize the model
+    dequantized_model = copy.deepcopy(model_template)
+    for name, module in dequantized_model.named_modules():
+        if isinstance(module, (nn.Linear, nn.Conv2d)):  # Dequantize weights and biases
+            # Dequantize weights
+            weight_key = f"{name}.weight"
+            if weight_key in scale_factors:
+                scale_factor = scale_factors[weight_key]
+                module.weight.data = module.weight.data.float() * scale_factor
+
+            # Dequantize biases (if present)
+            bias_key = f"{name}.bias"
+            if bias_key in scale_factors and module.bias is not None:
+                scale_factor = scale_factors[bias_key]
+                module.bias.data = module.bias.data.float() * scale_factor
+
+    return dequantized_model
+
+
+
 model_path = args.model_path
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -227,7 +253,7 @@ loaded_data = torch.load(model_path, map_location=device)
 
 model_parameters = loaded_data['weights_and_biases']
 video_parameters = loaded_data['video_parameters']
-
+model_hyperparameters = loaded_data['model_hyperparameters']
 
 # Access the video_parameters from the loaded dictionary
 height = video_parameters["height"]
@@ -242,23 +268,23 @@ audio_sample = audio_rate * audio_duration
 
 
 model = SharedSiren(
-    audio_initial_features=512,
-    audio_initial_layers=1,
-    video_initial_features=512,
-    video_initial_layers=1,
-    shared_hidden_features=512,
-    shared_hidden_layers=5,
-    video_hidden_features=512,
-    video_hidden_layers=1,
-    audio_hidden_features=512,
-    audio_hidden_layers=1,
-    hidden_omega_0=30,
-    siamese_audio=True,
-    audio_hidden_features_siam=512,
-    audio_hidden_layers_siam=1
-).to(device)
+    audio_initial_features=model_hyperparameters["audio_initial_features"],
+    audio_initial_layers=model_hyperparameters["audio_initial_layers"],
+    video_initial_features=model_hyperparameters["video_initial_features"],
+    video_initial_layers=model_hyperparameters["video_initial_layers"],
+    shared_hidden_features=model_hyperparameters["shared_hidden_features"],
+    shared_hidden_layers=model_hyperparameters["shared_hidden_layers"],
+    video_hidden_features=model_hyperparameters["video_hidden_features"],
+    video_hidden_layers=model_hyperparameters["video_hidden_layers"],
+    audio_hidden_features=model_hyperparameters["audio_hidden_features"],
+    audio_hidden_layers=model_hyperparameters["audio_hidden_layers"],
+    hidden_omega_0=model_hyperparameters["hidden_omega_0"],
+    siamese_audio=model_hyperparameters["siamese_audio"],
+    audio_hidden_features_siam=model_hyperparameters["audio_hidden_features_siam"],
+    audio_hidden_layers_siam=model_hyperparameters["audio_hidden_layers_siam"]
+).to(device)  # Move to device
 
-model.load_state_dict(model_parameters)
+model = load_and_dequantize_model(model_parameters, model)
 
 
 

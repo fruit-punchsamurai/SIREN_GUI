@@ -171,12 +171,11 @@ async def broadcast_clients_list():
 @app.post("/upload_and_infer")
 async def upload_and_infer(
     folder: str = Form(...),
-    model_file: UploadFile = File(...),
-    json_file: UploadFile = File(...)
+    model_file: UploadFile = File(...)
 ):
     """
-    Uploads a model file and a JSON file into a specified folder,
-    then runs inference using these files and saves the output video
+    Uploads a model file into a specified folder,
+    then runs inference using the file and saves the output video
     in the same folder.
     """
     folder = folder.strip()
@@ -192,26 +191,16 @@ async def upload_and_infer(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving model file: {e}")
     
-    # Save the JSON file
-    json_file_path = os.path.join(folder_path, json_file.filename)
-    try:
-        with open(json_file_path, "wb") as f:
-            f.write(await json_file.read())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving JSON file: {e}")
-    
     # Generate a unique name for the output video
     output_video_name = f"output_{Path(model_file.filename).stem}_{uuid.uuid4().hex}.webm"
     output_video_path = os.path.join(folder_path, output_video_name)
     
     # Build the command to run the inference script
     model_file_path = os.path.abspath(model_file_path)
-    json_file_path = os.path.abspath(json_file_path)
     output_video_path = os.path.abspath(output_video_path)
     command = [
         "python", "infer.py",
         "--model_path", model_file_path,
-        "--json_file", json_file_path,
         "--output_file", output_video_path  # Make sure infer.py accepts this argument.
     ]
     
