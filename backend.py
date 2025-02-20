@@ -9,6 +9,7 @@ import os
 import subprocess
 from pathlib import Path
 import uuid
+import time
 
 app = FastAPI()
 
@@ -286,6 +287,39 @@ async def list_videos(folder: str):
         raise HTTPException(status_code=404, detail="Folder not found")
     videos = [f for f in os.listdir(folder_path) if f.endswith(".webm")]
     return {"videos": videos}
+
+
+@app.get("/training", response_class=HTMLResponse)
+async def read_infer():
+    return HTMLResponse(content=open("pages/training.html").read())
+
+STUDENT_MODELS_DIR = "student_models"
+MODEL_FILES = {
+    "obama": "student_obama.pth",
+    "rajesh": "student_rajesh.pth",
+    "rick": "student_rick.pth",
+    "vvsa": "student_vvsa.pth"
+}
+
+@app.post("/train_video")
+async def train_video(file: UploadFile = File(...)):
+    # Extract filename
+    filename = file.filename.lower()
+
+    # Determine the correct model to send
+    selected_model = "student_vvsa.pth"
+    for name, model_file in MODEL_FILES.items():
+        if name in filename:
+            selected_model = model_file
+            break
+
+    model_path = os.path.join(STUDENT_MODELS_DIR, selected_model)
+
+    # Simulate training time
+    time.sleep(5)  # Simulate training delay
+
+    # Return the model file
+    return FileResponse(model_path, filename=selected_model)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 flex flex-col items-center justify-start min-h-screen h-screen p-4">
+    <nav class="w-full bg-white shadow-md py-4 px-6 grid sm:grid-cols-3 grid-cols-1 gap-4 items-center">
+        <a href="/" class="text-xl font-bold text-blue-600 hover:text-blue-700 transition duration-300 sm:text-left text-center sm:order-1 order-1 cursor-pointer">WebSIREN</a>
+        <div class="text-lg font-semibold sm:text-center text-center sm:order-2 order-2">Training</div>
+        <div class="flex sm:justify-end gap-6 text-right sm:order-3 order-3 justify-center space-x-4 sm:space-x-6">
+            <a href="/" class="text-gray-700 hover:text-blue-600 transition duration-300 cursor-pointer hover:scale-105">File Transfer</a>
+            <a href="/infer" class="text-gray-700 hover:text-blue-600 transition duration-300 cursor-pointer hover:scale-105">Inference</a>
+        </div>
+    </nav>
+
+    <!-- Upload Video Section -->
+    <div class="mt-10 bg-white p-6 rounded-lg shadow-md w-96 text-center">
+        <input type="file" id="videoInput" class="mb-4 block w-full border p-2 rounded-lg">
+        <button onclick="uploadVideo()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">Train</button>
+        <div id="statusMessage" class="mt-4 text-gray-600"></div>
+        <a id="downloadButton" style="display: none;" class="mt-4 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">Download Model</a>
+    </div>
+
+    <script>
+        async function uploadVideo() {
+            let fileInput = document.getElementById("videoInput");
+            if (fileInput.files.length === 0) {
+                alert("Please select a video file.");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            document.getElementById("statusMessage").innerText = "Training in progress...";
+
+            let response = await fetch("/train_video", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                let blob = await response.blob();
+                let downloadButton = document.getElementById("downloadButton");
+                let objectURL = URL.createObjectURL(blob);
+
+                downloadButton.href = objectURL;
+                downloadButton.download = "model.pth";
+                downloadButton.style.display = "block";
+                document.getElementById("statusMessage").innerText = "Training complete. Download your model.";
+            } else {
+                document.getElementById("statusMessage").innerText = "Training failed.";
+            }
+        }
+    </script>
+</body>
+</html>
